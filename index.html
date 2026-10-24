@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Just Us · Chat</title>
+<style>
+:root{--bg:#f6f3ee;--surface:#fff;--text:#1f1d1a;--muted:#8a847b;--me:#2f6f5e;--me-text:#fff;--them:#ece7de;--line:#e3ddd2;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#161513;--surface:#201e1b;--text:#efebe4;--muted:#948d82;--me:#3f8f78;--them:#2d2a26;--line:#34312c;color-scheme:dark}}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);box-sizing:border-box}
+header{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface);display:flex;align-items:center;gap:8px}
+header h1{font-size:17px;margin:0;font-weight:600}
+#status{color:var(--muted);font-size:13px;margin-left:auto}
+button{font:inherit;color:var(--text);cursor:pointer}
+.pill{border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:4px 10px;font-size:13px}
+.pill.on{background:var(--me);color:var(--me-text);border-color:var(--me)}
+#log{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;flex-direction:column;max-width:78%}
+.row.me{align-self:flex-end;align-items:flex-end}.row.them{align-self:flex-start;align-items:flex-start}
+.bub{padding:8px 12px;border-radius:18px;overflow-wrap:anywhere;white-space:pre-wrap}
+.me .bub{background:var(--me);color:var(--me-text);border-bottom-right-radius:5px}
+.them .bub{background:var(--them);border-bottom-left-radius:5px}
+.bub.sticker{background:none;font-size:72px;line-height:1.1;padding:0}
+.bub.img{padding:3px}.bub.img img{display:block;max-width:100%;max-height:300px;border-radius:15px}
+.bub.stimg{background:none;padding:0}.bub.stimg img{display:block;width:140px;max-width:100%}
+.time{font-size:11px;color:var(--muted);margin:2px 6px}
+.center{margin:auto;color:var(--muted);text-align:center;padding:20px}
+#more{align-self:center;display:none}
+#panel{display:none;background:var(--surface);border-top:1px solid var(--line)}
+#panel.open{display:block}
+.tabs{display:flex;gap:4px;padding:6px 10px 0}
+.tabs button{border:0;background:none;color:var(--muted);padding:6px 12px;border-radius:14px;font-size:14px}
+.tabs button.on{background:var(--them);color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:2px;padding:8px 10px;max-height:190px;overflow-y:auto}
+.grid.st{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
+.grid button{border:0;background:none;font-size:26px;padding:4px;border-radius:10px}
+.grid.st button{font-size:46px}
+.grid button:hover{background:var(--them)}
+.stbar{display:flex;gap:8px;padding:8px 10px 0}
+.cs{position:relative}.cs img{width:100%;height:64px;object-fit:contain;display:block}
+.cs .x{position:absolute;top:0;right:0;background:#c0392b;color:#fff;border-radius:50%;width:20px;height:20px;font-size:13px;line-height:20px;display:none}
+.edit .cs .x{display:block}
+form#f{display:flex;align-items:flex-end;gap:6px;padding:8px 10px;background:var(--surface);border-top:1px solid var(--line)}
+.ic{border:0;background:none;font-size:22px;padding:6px;border-radius:50%}
+textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:20px;padding:9px 14px;font:inherit;max-height:110px;outline:none}
+#send{border:0;background:var(--me);color:var(--me-text);border-radius:50%;width:38px;height:38px;font-size:17px}
+#setup{position:fixed;inset:0;background:var(--bg);display:none;overflow-y:auto;padding:24px 18px}
+#setup.open{display:block}
+#setup .box{max-width:420px;margin:0 auto}
+#setup label{display:block;margin:14px 0 4px;font-size:14px;color:var(--muted)}
+#setup input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:inherit}
+#setup .go{margin-top:20px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--me);color:var(--me-text);font-weight:600}
+#setup small{color:var(--muted);display:block;margin-top:14px;line-height:1.5}
+#err{color:#c0392b;margin-top:10px;min-height:1.2em}
+</style>
+</head>
+<body>
+<header><h1>💬 Just Us</h1><span id="status"></span><button class="pill" id="gear" title="Settings">⚙</button></header>
+<div id="log"><button class="pill" id="more">Load earlier messages</button></div>
+<div id="panel">
+  <div class="tabs"><button id="tE" class="on">Emoji</button><button id="tS">Stickers</button></div>
+  <div id="gE" class="grid"></div>
+  <div id="sP" hidden>
+    <div class="stbar"><button class="pill" id="addSt">＋ Add your sticker</button><button class="pill" id="edSt">Remove</button><input type="file" id="stFile" accept="image/*" hidden></div>
+    <div id="gC" class="grid st"></div><div id="gS" class="grid st"></div>
+  </div>
+</div>
+<form id="f">
+  <button type="button" class="ic" id="bEmo" aria-label="Emoji and stickers">😊</button>
+  <button type="button" class="ic" id="bImg" aria-label="Send a photo">📷</button>
+  <input type="file" id="file" accept="image/*" hidden>
+  <textarea id="msg" rows="1" placeholder="Message…" aria-label="Message"></textarea>
+  <button id="send" type="submit" aria-label="Send">➤</button>
+</form>
+
+<div id="setup"><div class="box">
+  <h2>Connect your private repo</h2>
+  <label>Repository (owner/name)</label><input id="sRepo" placeholder="yourname/our-chat" autocapitalize="off" autocomplete="off">
+  <label>Branch</label><input id="sBranch" value="main" autocapitalize="off">
+  <label>GitHub token (fine-grained)</label><input id="sToken" type="password" placeholder="github_pat_…" autocomplete="off">
+  <label>Your name (must differ from the other person’s)</label><input id="sName" placeholder="e.g. Alex" maxlength="20">
+  <div id="err"></div>
+  <button class="go" id="save">Save &amp; open chat</button>
+  <small>Your token is stored only in this browser (localStorage) and is sent only to api.github.com. Make it a fine-grained token limited to this one repo with <b>Contents: Read and write</b>.</small>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const LS="duochat.cfg.v1", API="https://api.github.com";
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let cfg=null; try{cfg=JSON.parse(localStorage.getItem(LS))}catch(_){}
+const msgs=new Map(), nodes=new Map(), etags=new Map(), blobs=new Map();
+let stickers=[], earliest=null, dayNames=null, q=Promise.resolve();
+
+const EMOJI=Array.from("😀😃😄😁😆😅😂🤣😊😇🙂😉😍🥰😘😗😋😜🤪😎🤩🥳😏😒😞😔😟😕🙁😣😖😫😩🥺😢😭😤😠😡🤯😳🥵🥶😱😨😰😥😓🤗🤔🤭🤫😶😐😑😬🙄😯😴🤤😪😵🤐🥴🤢🤧😷🤒🤠👍👎👏🙌🙏💪👋🤝✌️🤞🤟👌🫶❤️🧡💛💚💙💜🖤🤍💔💕💞💓💗💖🔥✨⭐🌟🎉🎊🎁🎂🍕🍔🍟🍿🍩🍪☕🍺🌹🌸🌞🌙🌈☔🐶🐱🐼🦄🐢🦋");
+const STICKERS=Array.from("🥰😘😭😂🤣🥳🤩😎🙄😴🤯🥺💖💔🔥🎉🎂🍕☕🌹🌈🦄🐼🐶🐱🐢🦋💪🙏👏🫶✨💤💯🚀🏆🍿");
+
+/* ---------- GitHub helpers ---------- */
+function gh(method,path,body,headers){
+  const url=API+"/repos/"+cfg.repo+"/contents/"+path+(method==="GET"?"?ref="+encodeURIComponent(cfg.branch):"");
+  return fetch(url,{method,cache:"no-store",headers:{Authorization:"Bearer "+cfg.token,Accept:"application/vnd.github+json",...headers},
+    body:body?JSON.stringify({...body,branch:cfg.branch}):undefined});
+}
+const b64text=s=>btoa(unescape(encodeURIComponent(s)));
+const status=t=>$("status").textContent=t;
+async function put(path,content){
+  for(let i=0;i<4;i++){
+    const r=await gh("PUT",path,{message:"chat",content});
+    if(r.ok)return;
+    if((r.status===409||r.status===422)&&i<3){await sleep(500+Math.random()*700);continue}
+    throw new Error(r.status);
+  }
+}
+async function listDir(path,key){
+  const h={}; if(etags.has(key))h["If-None-Match"]=etags.get(key);
+  const r=await gh("GET",path,null,h);
+  if(r.status===304)return null;
+  if(r.status===404)return [];
+  if(r.status===401||r.status===403){status("check your token");throw 0}
+  if(!r.ok)throw 0;
+  etags.set(key,r.headers.get("etag"));
+  return r.json();
+}
+function blobUrl(path){
+  if(!blobs.has(path))blobs.set(path,gh("GET",path,null,{Accept:"application/vnd.github.raw"})
+    .then(r=>r.ok?r.blob():Promise.reject()).then(b=>URL.createObjectURL(b)));
+  return blobs.get(path);
+}
+
+/* ---------- loading ---------- */
+const dayOf=ts=>new Date(ts).toISOString().slice(0,10);
+async function loadDay(day){
+  const list=await listDir("chat/messages/"+day,"d"+day); if(!list)return;
+  await Promise.all(list.filter(f=>f.name.endsWith(".json")&&!msgs.has(day+"/"+f.name)).map(async f=>{
+    try{const r=await gh("GET",f.path,null,{Accept:"application/vnd.github.raw"});
+      if(r.ok)msgs.set(day+"/"+f.name,await r.json())}catch(_){}
+  }));
+  render();
+}
+async function loadStickers(){
+  const list=await listDir("chat/stickers","stk"); if(!list)return;
+  stickers=list.filter(f=>/\.(webp|png|jpg)$/.test(f.name)).sort((a,b)=>b.name.localeCompare(a.name));
+  drawStickers();
+}
+async function tick(){
+  if(document.hidden||!cfg)return;
+  try{await Promise.all([loadDay(dayOf(Date.now())),loadStickers()]);status("online")}catch(_){if(!$("status").textContent.startsWith("check"))status("offline — retrying")}
+}
+async function loadEarlier(){
+  try{
+    if(!dayNames){const l=await listDir("chat/messages","days")||[];dayNames=l.filter(x=>x.type==="dir").map(x=>x.name).sort()}
+    const prev=dayNames.filter(d=>d<earliest).pop();
+    if(!prev){$("more").style.display="none";return}
+    earliest=prev;await loadDay(prev);
+    if(!dayNames.filter(d=>d<earliest).length)$("more").style.display="none";
+  }catch(_){status("couldn’t load earlier")}
+}
+
+/* ---------- sending ---------- */
+function enqueue(fn){q=q.then(fn,fn);return q}
+function sendMsg(m,files,local){
+  const ts=Date.now(),day=dayOf(ts),name=ts+"-"+Math.random().toString(36).slice(2,6);
+  const obj={...m,from:cfg.name,ts}, key=day+"/"+name+".json";
+  if(obj.path)obj.path=obj.path.replace("{n}",name);
+  if(local)blobs.set(obj.path,Promise.resolve(local));
+  msgs.set(key,{...obj,pending:true});render();
+  enqueue(async()=>{
+    try{
+      for(const f of files||[])await put(f.path.replace("{n}",name),f.b64);
+      await put("chat/messages/"+day+"/"+name+".json",b64text(JSON.stringify(obj)));
+      msgs.set(key,obj);render();
+    }catch(e){msgs.delete(key);const n=nodes.get(key);if(n){n.remove();nodes.delete(key)}status("couldn’t send — check token/permissions")}
+  });
+  return obj;
+}
+function sendImage(dataUrl){
+  const path="chat/images/{n}.jpg";
+  sendMsg({t:"img",path},[{path,b64:dataUrl.split(",")[1]}],dataUrl);
+}
+function toDataUrl(file,max,type,qual){return new Promise((res,rej)=>{
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");
+    c.width=Math.max(1,Math.round(img.width*s));c.height=Math.max(1,Math.round(img.height*s));
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL(type,qual))};
+  img.onerror=rej;img.src=url})}
+
+/* ---------- rendering ---------- */
+const fmt=ts=>new Date(ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+function setImg(el,path){blobUrl(path).then(u=>{el.src=u}).catch(()=>{el.alt="(image unavailable)"})}
+function makeNode(m){
+  const row=document.createElement("div"),b=document.createElement("div"),t=document.createElement("div");
+  row.className="row "+(m.from&&m.from.toLowerCase()===cfg.name.toLowerCase()?"me":"them");b.className="bub";t.className="time";
+  if((m.t==="img"||m.t==="stimg")&&typeof m.path==="string"&&m.path.startsWith("chat/")){
+    b.classList.add(m.t);const i=document.createElement("img");i.alt=m.t==="img"?"Photo":"Sticker";setImg(i,m.path);b.appendChild(i)}
+  else if(m.t==="sticker"){b.classList.add("sticker");b.textContent=String(m.v)}
+  else b.textContent=String(m.v);
+  row.append(b,t);return row;
+}
+function render(){
+  const log=$("log"),near=log.scrollHeight-log.scrollTop-log.clientHeight<140;
+  const keys=[...msgs.keys()].sort();
+  for(const k of keys){
+    const m=msgs.get(k);
+    if(!nodes.has(k))nodes.set(k,makeNode(m));
+    nodes.get(k).lastChild.textContent=m.pending?"sending…":fmt(m.ts);
+    log.appendChild(nodes.get(k));
+  }
+  const e=$("empty");if(e)e.remove();
+  if(!keys.length&&!$("empty")){const d=document.createElement("div");d.id="empty";d.className="center";d.textContent="No messages yet. Say hi 👋";log.appendChild(d)}
+  if(near)log.scrollTop=log.scrollHeight;
+}
+
+/* ---------- stickers ---------- */
+function drawStickers(){
+  const g=$("gC");g.textContent="";
+  for(const f of stickers){
+    const b=document.createElement("button");b.type="button";b.className="cs";
+    const i=document.createElement("img");i.alt="Sticker";setImg(i,f.path);
+    const x=document.createElement("span");x.className="x";x.textContent="×";b.append(i,x);
+    b.onclick=async()=>{
+      if(g.classList.contains("edit")){
+        const r=await gh("DELETE",f.path,{message:"remove sticker",sha:f.sha});
+        if(r.ok){etags.delete("stk");loadStickers()}else status("couldn’t remove")
+      }else{sendMsg({t:"stimg",path:f.path});$("panel").classList.remove("open")}
+    };
+    g.appendChild(b);
+  }
+}
+
+/* ---------- UI wiring ---------- */
+const msg=$("msg");
+$("f").addEventListener("submit",e=>{e.preventDefault();const v=msg.value.trim();if(!v)return;msg.value="";msg.style.height="auto";sendMsg({t:"text",v})});
+msg.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("f").requestSubmit()}});
+msg.addEventListener("input",()=>{msg.style.height="auto";msg.style.height=Math.min(msg.scrollHeight,110)+"px"});
+$("bEmo").onclick=()=>$("panel").classList.toggle("open");
+$("tE").onclick=()=>{$("gE").hidden=false;$("sP").hidden=true;$("tE").className="on";$("tS").className=""};
+$("tS").onclick=()=>{$("gE").hidden=true;$("sP").hidden=false;$("tS").className="on";$("tE").className=""};
+for(const x of EMOJI){const b=document.createElement("button");b.type="button";b.textContent=x;b.onclick=()=>{msg.value+=x;msg.focus()};$("gE").appendChild(b)}
+for(const x of STICKERS){const b=document.createElement("button");b.type="button";b.textContent=x;b.onclick=()=>{sendMsg({t:"sticker",v:x});$("panel").classList.remove("open")};$("gS").appendChild(b)}
+$("bImg").onclick=()=>$("file").click();
+$("file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{sendImage(await toDataUrl(f,900,"image/jpeg",.75))}catch(_){status("couldn’t read that image")}};
+$("addSt").onclick=()=>$("stFile").click();
+$("stFile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const d=await toDataUrl(f,256,"image/webp",.85);
+    const ext=d.startsWith("data:image/webp")?"webp":"png",name=Date.now()+"."+ext;
+    await put("chat/stickers/"+name,d.split(",")[1]);etags.delete("stk");loadStickers()}
+  catch(_){status("couldn’t add that sticker")}};
+$("edSt").onclick=()=>{const g=$("gC"),on=g.classList.toggle("edit");$("edSt").classList.toggle("on",on);$("edSt").textContent=on?"Done":"Remove"};
+$("more").onclick=loadEarlier;
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});
+
+/* ---------- setup ---------- */
+function openSetup(){
+  const c=cfg||{};$("sRepo").value=c.repo||"";$("sBranch").value=c.branch||"main";$("sToken").value=c.token||"";$("sName").value=c.name||"";
+  $("err").textContent="";$("setup").classList.add("open");
+}
+$("gear").onclick=openSetup;
+$("save").onclick=async()=>{
+  const n={repo:$("sRepo").value.trim(),branch:$("sBranch").value.trim()||"main",token:$("sToken").value.trim(),name:$("sName").value.trim()};
+  if(!/^[\w.-]+\/[\w.-]+$/.test(n.repo)||!n.token||!n.name){$("err").textContent="Fill in all fields (repo as owner/name).";return}
+  $("err").textContent="Checking…";
+  try{
+    const r=await fetch(API+"/repos/"+n.repo,{cache:"no-store",headers:{Authorization:"Bearer "+n.token,Accept:"application/vnd.github+json"}});
+    if(!r.ok){$("err").textContent=r.status===404?"Repo not found (or token can’t see it).":"GitHub said "+r.status+" — check the token.";return}
+    const j=await r.json();if(j.permissions&&!j.permissions.push){$("err").textContent="Token needs Contents: Read and write.";return}
+  }catch(_){$("err").textContent="Couldn’t reach GitHub.";return}
+  const changed=!cfg||cfg.repo!==n.repo||cfg.branch!==n.branch;
+  cfg=n;localStorage.setItem(LS,JSON.stringify(cfg));$("setup").classList.remove("open");
+  if(changed){msgs.clear();nodes.forEach(x=>x.remove());nodes.clear();etags.clear()}
+  start();
+};
+
+let timer=null;
+async function start(){
+  clearInterval(timer);
+  const today=Date.now(),days=[2,1,0].map(d=>dayOf(today-d*864e5));
+  earliest=days[0];dayNames=null;$("more").style.display="block";
+  status("loading…");
+  try{await Promise.all([...days.map(loadDay),loadStickers()]);status("online")}catch(_){}
+  render();timer=setInterval(tick,5000);
+}
+if(cfg&&cfg.token)start();else openSetup();
+</script>
+</body>
+</html>
